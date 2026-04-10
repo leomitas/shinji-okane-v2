@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Transaction {
+  id                 String          @id @default(uuid())
+  description        String
+  amount             Float
+  category           Category
+  transactionType    TransactionType
+  nature             Nature
+  date               DateTime        @default(now())
+
+  // Controlo de Parcelas
+  installmentsCount  Int             @default(1)
+  currentInstallment Int             @default(1)
+  installmentId      String?
+  installmentValue   Float?
+
+  // Controlo de Recorrência
+  isRecurring        Boolean         @default(false)
+  recurrenceId       String?
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@map("transactions")
+}
+
+enum Category {
+  EDUCACAO
+  TRANSPORTE
+  MORADIA
+  COMPRAS
+  OUTROS
+  ALIMENTACAO
+  RENDIMENTO
+  ASSINATURAS
+}
+
+enum TransactionType {
+  SINGLE
+  INSTALLMENT
+  RECURRING
+}
+
+enum Nature {
+  INCOME
+  EXPENSE
+}
