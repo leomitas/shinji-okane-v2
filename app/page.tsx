@@ -351,7 +351,7 @@ export default function Home() {
           </form>
         </div>
 
-        {/* LISTA RESPONSIVA (Adeus Tabela) */}
+        {/* LISTA RESPONSIVA (Tabela no Desktop / Cartões no Mobile) */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="p-4 md:p-6 border-b border-zinc-800">
             <h2 className="text-base md:text-lg font-semibold text-white">
@@ -359,6 +359,18 @@ export default function Home() {
                 ? "Registo Geral"
                 : `Registos de ${capitalizedMonthName}`}
             </h2>
+          </div>
+
+          {/* Cabeçalho da Tabela (Fica Invisível no Telemóvel) */}
+          <div className="hidden md:flex flex-row items-center justify-between px-6 py-3 text-xs text-zinc-500 uppercase font-medium bg-zinc-900/50 border-b border-zinc-800">
+            <div className="flex flex-row items-center flex-1 gap-6">
+              <div className="w-[40%]">Data / Descrição</div>
+              <div className="w-[60%] flex justify-between">
+                <div className="w-1/2 text-center">Categoria</div>
+                <div className="w-1/2 text-center">Tipo</div>
+              </div>
+            </div>
+            <div className="w-[120px] text-right">Valor</div>
           </div>
 
           <div>
@@ -388,46 +400,59 @@ export default function Home() {
                       key={tx.id}
                       className="p-4 md:px-6 md:py-4 flex flex-row items-center justify-between gap-4 hover:bg-zinc-800/30 transition-colors group"
                     >
-                      {/* Lado Esquerdo */}
-                      <div className="flex flex-col gap-1.5 min-w-0">
-                        <span className="font-medium text-zinc-200 text-sm md:text-base truncate">
-                          {tx.description}
-                        </span>
-
-                        <div className="flex flex-wrap items-center gap-2 text-[10px] md:text-xs text-zinc-500">
-                          <span>{dateObj.toLocaleDateString("pt-BR")}</span>
-                          <span className="w-1 h-1 rounded-full bg-zinc-700 hidden sm:block"></span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full font-semibold border ${getCategoryColor(tx.category)}`}
-                          >
-                            {tx.category}
+                      {/* Lado Esquerdo / Colunas Desktop */}
+                      <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-6 flex-1 min-w-0">
+                        {/* Coluna 1: Descrição e Data */}
+                        <div className="flex flex-col min-w-0 md:w-[40%]">
+                          <span className="font-medium text-zinc-200 text-sm md:text-base truncate">
+                            {tx.description}
                           </span>
-                          <span className="w-1 h-1 rounded-full bg-zinc-700 hidden sm:block"></span>
-                          <span className="text-zinc-400">
+                          <span className="text-[10px] md:text-xs text-zinc-500 mt-0.5">
+                            {dateObj.toLocaleDateString("pt-BR")}
+                          </span>
+
+                          {/* Aviso de Recorrente no mês errado */}
+                          {(tx.isRecurring ||
+                            tx.transactionType === "RECURRING") &&
+                            viewMode === "MENSAL" &&
+                            dateObj.getMonth() !== currentDate.getMonth() && (
+                              <div className="text-[10px] md:text-xs text-indigo-400/80 italic mt-0.5 md:mt-1">
+                                ↳ Herança de{" "}
+                                {dateObj.toLocaleDateString("pt-BR", {
+                                  month: "long",
+                                })}
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Colunas 2 e 3: Categoria e Tipo (Lado a lado no PC, juntas no Mobile) */}
+                        <div className="flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-6 md:w-[60%] md:justify-between">
+                          {/* Categoria */}
+                          <div className="md:w-1/2 md:flex md:justify-center">
+                            <span
+                              className={`px-2 py-0.5 md:px-3 md:py-1 rounded-full font-semibold border text-[10px] md:text-xs ${getCategoryColor(tx.category)}`}
+                            >
+                              {tx.category}
+                            </span>
+                          </div>
+
+                          {/* Bolinha separadora só para mobile */}
+                          <span className="w-1 h-1 rounded-full bg-zinc-700 md:hidden"></span>
+
+                          {/* Tipo */}
+                          <div className="text-[10px] md:text-sm text-zinc-400 md:w-1/2 md:flex md:justify-center">
                             {tx.transactionType === "INSTALLMENT"
                               ? "🔄 Parcelada"
                               : tx.isRecurring
                                 ? "⭐ Fixo/Ass."
                                 : "📄 Única"}
-                          </span>
+                          </div>
                         </div>
-
-                        {(tx.isRecurring ||
-                          tx.transactionType === "RECURRING") &&
-                          viewMode === "MENSAL" &&
-                          dateObj.getMonth() !== currentDate.getMonth() && (
-                            <div className="text-[10px] md:text-xs text-indigo-400/80 italic mt-0.5">
-                              ↳ Herança de{" "}
-                              {dateObj.toLocaleDateString("pt-BR", {
-                                month: "long",
-                              })}
-                            </div>
-                          )}
                       </div>
 
-                      {/* Lado Direito */}
+                      {/* Lado Direito / Coluna 4: Valor */}
                       <div
-                        className={`font-semibold text-sm md:text-base text-right shrink-0 ${tx.nature === "INCOME" ? "text-emerald-400" : "text-zinc-300"}`}
+                        className={`font-semibold text-sm md:text-base text-right shrink-0 md:w-[120px] ${tx.nature === "INCOME" ? "text-emerald-400" : "text-zinc-300"}`}
                       >
                         {tx.nature === "INCOME" ? "+" : "-"} R${" "}
                         {Number(value).toFixed(2)}
