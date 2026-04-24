@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
