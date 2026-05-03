@@ -581,7 +581,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 md:gap-4 shrink-0 md:w-35 justify-end">
+                      <div className="flex items-center gap-2 shrink-0 md:w-35 justify-end">
                         <div
                           className={`font-semibold text-sm md:text-base text-right ${tx.nature === 'INCOME' ? 'text-emerald-400' : 'text-zinc-300'}`}
                         >
