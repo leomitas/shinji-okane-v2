@@ -15,6 +15,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  X,
 } from 'lucide-react'
 
 interface Transaction {
@@ -47,10 +48,12 @@ export default function Home() {
     text: string
     type: 'success' | 'error'
   } | null>(null)
+
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
     tx: ProcessedTransaction | null
-  }>({ isOpen: false, tx: null })
+    isDeleteAll?: boolean
+  }>({ isOpen: false, tx: null, isDeleteAll: false })
 
   const [viewMode, setViewMode] = useState<'GERAL' | 'MENSAL'>('GERAL')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -144,6 +147,26 @@ export default function Home() {
     }
   }
 
+  const handleDeleteAll = async () => {
+    try {
+      const idsToDelete = transactions.map((t) => t.id)
+
+      setTransactions([])
+
+      await Promise.all(
+        idsToDelete.map((id) =>
+          fetch(`/api/transactions?id=${id}`, { method: 'DELETE' }),
+        ),
+      )
+
+      showToast('Todos os registros foram apagados!', 'success')
+    } catch (error) {
+      console.error('Erro ao limpar tudo:', error)
+      fetchTransactions()
+      showToast('Erro ao apagar todos os dados.', 'error')
+    }
+  }
+
   const prevMonth = () =>
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
@@ -152,6 +175,30 @@ export default function Home() {
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
     )
+
+  const canGoBack = useMemo(() => {
+    if (transactions.length === 0) {
+      const hoje = new Date()
+      return (
+        currentDate.getFullYear() > hoje.getFullYear() ||
+        (currentDate.getFullYear() === hoje.getFullYear() &&
+          currentDate.getMonth() > hoje.getMonth())
+      )
+    }
+
+    const oldestTimestamp = Math.min(
+      ...transactions.map((tx) => new Date(tx.date).getTime()),
+    )
+    const oldestDate = new Date(oldestTimestamp)
+
+    const isAfterOldestYear =
+      currentDate.getFullYear() > oldestDate.getFullYear()
+    const isSameYearAfterOldestMonth =
+      currentDate.getFullYear() === oldestDate.getFullYear() &&
+      currentDate.getMonth() > oldestDate.getMonth()
+
+    return isAfterOldestYear || isSameYearAfterOldestMonth
+  }, [transactions, currentDate])
 
   const monthName = currentDate.toLocaleString('pt-BR', {
     month: 'long',
@@ -299,7 +346,7 @@ export default function Home() {
         </div>
       )}
 
-      {confirmModal.isOpen && confirmModal.tx && (
+      {confirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl max-w-sm w-full animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 mb-3">
@@ -307,25 +354,41 @@ export default function Home() {
                 <Trash2 className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-semibold text-white">
-                Apagar Registro?
+                {confirmModal.isDeleteAll ? 'Limpar Tudo?' : 'Apagar Registro?'}
               </h3>
             </div>
             <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
-              {confirmModal.tx.isGroupedDisplay
-                ? 'Isto vai apagar TODAS as parcelas desta compra de todos os meses futuros. Tem certeza?'
-                : 'Tem certeza que quer apagar permanentemente este registro?'}
+              {confirmModal.isDeleteAll
+                ? 'Tem certeza absoluta que deseja apagar TODOS os registros do sistema? Esta ação é irreversível.'
+                : confirmModal.tx?.isGroupedDisplay
+                  ? 'Isto vai apagar TODAS as parcelas desta compra de todos os meses futuros. Tem certeza?'
+                  : 'Tem certeza que quer apagar permanentemente este registro?'}
             </p>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setConfirmModal({ isOpen: false, tx: null })}
+                onClick={() =>
+                  setConfirmModal({
+                    isOpen: false,
+                    tx: null,
+                    isDeleteAll: false,
+                  })
+                }
                 className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => {
-                  handleDelete(confirmModal.tx!)
-                  setConfirmModal({ isOpen: false, tx: null })
+                  if (confirmModal.isDeleteAll) {
+                    handleDeleteAll()
+                  } else if (confirmModal.tx) {
+                    handleDelete(confirmModal.tx)
+                  }
+                  setConfirmModal({
+                    isOpen: false,
+                    tx: null,
+                    isDeleteAll: false,
+                  })
                 }}
                 className="px-4 py-2 text-sm font-medium bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition-colors cursor-pointer shadow-lg shadow-rose-900/20"
               >
@@ -375,13 +438,16 @@ export default function Home() {
           <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-4 bg-zinc-900/50 border border-zinc-800/50 p-2 sm:py-3 sm:px-4 rounded-xl animate-in fade-in slide-in-from-top-4">
             <button
               onClick={prevMonth}
-              className="p-2 bg-zinc-900 sm:bg-transparent hover:bg-zinc-800 rounded-lg sm:rounded-full transition-colors text-zinc-400 hover:text-white cursor-pointer"
+              disabled={!canGoBack}
+              className={`p-2 bg-zinc-900 sm:bg-transparent rounded-lg sm:rounded-full transition-colors ${!canGoBack ? 'text-zinc-700 opacity-50 cursor-not-allowed' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer'}`}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
+
             <span className="w-full sm:w-40 text-center font-medium text-base sm:text-lg text-zinc-200">
               {capitalizedMonthName}
             </span>
+
             <button
               onClick={nextMonth}
               className="p-2 bg-zinc-900 sm:bg-transparent hover:bg-zinc-800 rounded-lg sm:rounded-full transition-colors text-zinc-400 hover:text-white cursor-pointer"
@@ -465,11 +531,82 @@ export default function Home() {
                   }
                 }
               }}
-              placeholder="Ex: Comprei um monitor na Pichau por 1800 reais em 10x sem juros..."
-              className="w-full bg-transparent text-white p-3 md:p-4 min-h-20 md:min-h-25 text-sm md:text-base resize-none focus:outline-none placeholder:text-zinc-600"
+              placeholder="Ex: Comprei um teclado no pix por 350 reais..."
+              className="w-full bg-transparent text-white p-3 md:p-4 min-h-[80px] md:min-h-[100px] text-sm md:text-base resize-none focus:outline-none placeholder:text-zinc-600"
               disabled={isSubmitting}
             />
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2 border-t border-zinc-800/50 mt-2 gap-3">
+
+            <div className="flex flex-wrap items-center gap-2 px-3 md:px-4 pb-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setInputText(
+                    'Comprei um monitor por 1800 reais em 10x sem juros',
+                  )
+                }
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-indigo-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-indigo-500/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Monitor em 10x
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputText('Salário de 10 mil reais por mês')}
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-emerald-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-emerald-500/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Salário Fixo
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputText('Investimento fixo de 4 mil reais')}
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-amber-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-text-amber-300/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Investimento
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputText('Jantar no Outback 400 reais')}
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-orange-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-orange-500/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Jantar
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setInputText('Vendi meu computador antigo 8500 reais')
+                }
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-rose-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-rose-500/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Venda de computador
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setInputText('Viagem para o Rio de Janeiro 7000 reais')
+                }
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-blue-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-blue-500/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Viagem
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputText('Aluguel 5300 reais')}
+                className="text-[10px] md:text-xs text-zinc-400 hover:text-cyan-300 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 hover:border-text-cyan-300/30 px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                + Aluguel
+              </button>
+
+              {inputText && (
+                <button
+                  type="button"
+                  onClick={() => setInputText('')}
+                  className="flex items-center gap-1 text-[10px] md:text-xs text-zinc-500 hover:text-rose-400 ml-auto px-2 py-1 transition-all cursor-pointer"
+                >
+                  <X className="w-3 h-3" /> Limpar
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2 border-t border-zinc-800/50 mt-1 gap-3">
               <div className="flex items-center gap-2 px-1">
                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0" />
                 <span className="text-[10px] md:text-xs text-zinc-500 font-medium leading-tight">
@@ -495,12 +632,24 @@ export default function Home() {
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="p-4 md:p-6 border-b border-zinc-800">
+          <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center">
             <h2 className="text-base md:text-lg font-semibold text-white">
               {viewMode === 'GERAL'
                 ? 'Registro Geral'
                 : `Registros de ${capitalizedMonthName}`}
             </h2>
+
+            {transactions.length > 0 && (
+              <button
+                onClick={() =>
+                  setConfirmModal({ isOpen: true, tx: null, isDeleteAll: true })
+                }
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Limpar Tudo</span>
+              </button>
+            )}
           </div>
 
           <div className="hidden md:flex flex-row items-center justify-between px-6 py-3 text-xs text-zinc-500 uppercase font-medium bg-zinc-900/50 border-b border-zinc-800">
@@ -511,7 +660,7 @@ export default function Home() {
                 <div className="w-1/2 text-center">Tipo</div>
               </div>
             </div>
-            <div className="w-35 text-right pr-10">Valor</div>
+            <div className="w-[160px] text-right pr-10">Valor</div>
           </div>
 
           <div>
@@ -525,6 +674,9 @@ export default function Home() {
                 <p className="text-sm">
                   Nenhuma transação{' '}
                   {viewMode === 'MENSAL' ? 'neste mês' : 'registrada'}.
+                </p>
+                <p className="text-xs text-zinc-600 mt-2">
+                  Dica: Tente clicar em um dos exemplos acima!
                 </p>
               </div>
             ) : (
@@ -581,15 +733,21 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 md:w-35 justify-end">
+                      <div className="flex items-center gap-2 md:gap-4 shrink-0 md:w-[160px] justify-end">
                         <div
-                          className={`font-semibold text-sm md:text-base text-right ${tx.nature === 'INCOME' ? 'text-emerald-400' : 'text-zinc-300'}`}
+                          className={`font-semibold text-sm md:text-base text-right whitespace-nowrap ${tx.nature === 'INCOME' ? 'text-emerald-400' : 'text-zinc-300'}`}
                         >
                           {tx.nature === 'INCOME' ? '+' : '-'} R${' '}
                           {Number(tx.displayAmount).toFixed(2)}
                         </div>
                         <button
-                          onClick={() => setConfirmModal({ isOpen: true, tx })}
+                          onClick={() =>
+                            setConfirmModal({
+                              isOpen: true,
+                              tx,
+                              isDeleteAll: false,
+                            })
+                          }
                           className="p-1.5 md:p-2 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer opacity-100 md:opacity-0 md:group-hover:opacity-100"
                           title="Apagar registro"
                         >
