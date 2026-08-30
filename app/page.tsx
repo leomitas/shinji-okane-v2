@@ -748,7 +748,7 @@ export default function Home() {
                               isDeleteAll: false,
                             })
                           }
-                          className="p-1.5 md:p-2 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                          className="p-1.5 md:p-2 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer opacity-100"
                           title="Apagar registro"
                         >
                           <Trash2 className="w-4 h-4" />
